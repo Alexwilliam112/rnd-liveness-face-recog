@@ -177,7 +177,8 @@ export const performLivenessAndRecognition = async (
         // If both criteria are met, complete the process
         if (blinkDetected && smileDetected) {
           updateProgressMessage('✅ Liveness and Face Recognition checks completed successfully!');
-          onComplete();
+          // Ensure the success message is logged before completing
+          setTimeout(onComplete, 500); // Add a slight delay to ensure the message is visible
           return;
         }
       } else {
