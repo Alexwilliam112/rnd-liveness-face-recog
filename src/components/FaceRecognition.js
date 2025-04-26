@@ -129,8 +129,20 @@ const FaceRecognition = () => {
         setProgressMessage('Matching face with reference image...');
         const faceMatcher = new faceapi.FaceMatcher(referenceDescriptor, 0.6);
         const match = faceMatcher.findBestMatch(detections[0].descriptor);
-        setMatchResult(match.label === 'Reference' ? 'PASS' : 'FAILED');
-        setProgressMessage('Check complete.');
+        const isMatch = match.label === 'Reference';
+
+        setMatchResult(isMatch ? 'PASS' : 'FAILED');
+
+        // Update progress message based on results
+        if (isMatch && isLive) {
+          setProgressMessage('✅ Both Face Recognition and Liveness Check Passed!');
+        } else if (isMatch) {
+          setProgressMessage('✅ Face Recognition Passed, ❌ Liveness Check Failed.');
+        } else if (isLive) {
+          setProgressMessage('❌ Face Recognition Failed, ✅ Liveness Check Passed.');
+        } else {
+          setProgressMessage('❌ Both Face Recognition and Liveness Check Failed.');
+        }
       } else {
         setProgressMessage('No faces detected.');
         setMatchResult(null);
