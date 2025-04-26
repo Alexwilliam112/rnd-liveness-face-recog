@@ -144,6 +144,10 @@ export const performLivenessAndRecognition = async (
         const rightEAR = eyeAspectRatio(rightEye);
         const isBlink = leftEAR < 0.2 && rightEAR < 0.2;
 
+        if (!blinkDetected) {
+          updateProgressMessage('Please blink.');
+        }
+
         if (isBlink && !blinkDetected) {
           updateProgressMessage('Blink detected! Proceeding to face recognition...');
           const faceMatcher = new faceapi.FaceMatcher(referenceDescriptor, 0.6);
@@ -160,6 +164,11 @@ export const performLivenessAndRecognition = async (
 
         // Check for smile
         const isSmile = expressions.happy > 0.7;
+
+        if (blinkDetected && !smileDetected) {
+          updateProgressMessage('Please smile.');
+        }
+
         if (isSmile && blinkDetected && !smileDetected) {
           updateProgressMessage('Smile detected! Proceeding to face recognition...');
           const faceMatcher = new faceapi.FaceMatcher(referenceDescriptor, 0.6);
@@ -182,7 +191,7 @@ export const performLivenessAndRecognition = async (
           return;
         }
       } else {
-        updateProgressMessage('No faces detected.');
+        updateProgressMessage('No faces detected. Please ensure your face is visible to the camera.');
       }
 
       // Continue processing frames
