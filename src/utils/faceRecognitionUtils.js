@@ -149,31 +149,41 @@ export const performLivenessAndRecognition = async (
           updateProgressMessage('Blink detected! Proceeding to face recognition...');
           const faceMatcher = new faceapi.FaceMatcher(referenceDescriptor, 0.6);
           const match = faceMatcher.findBestMatch(detection.descriptor);
-          const isMatch = match.label === 'Reference';
           const matchRate = ((1 - match.distance) * 100).toFixed(2);
 
-          updateProgressMessage(`Face Recognition after Blink: ${isMatch ? `PASS (${matchRate}%)` : `FAILED (${matchRate}%)`}`);
+          if (matchRate >= 80) {
+            updateProgressMessage(`Blink SUCCESS: Match Rate ${matchRate}%`);
+          } else {
+            updateProgressMessage(`Blink FAILED: Match Rate ${matchRate}%`);
+            blinkDetected = false; // Reset blink detection if match fails
+          }
         }
 
         // Check for smile
         const isSmile = expressions.happy > 0.7;
-        if (isSmile && !smileDetected) {
+        if (isSmile && blinkDetected && !smileDetected) {
           smileDetected = true;
           updateProgressMessage('Smile detected! Proceeding to face recognition...');
           const faceMatcher = new faceapi.FaceMatcher(referenceDescriptor, 0.6);
           const match = faceMatcher.findBestMatch(detection.descriptor);
-          const isMatch = match.label === 'Reference';
           const matchRate = ((1 - match.distance) * 100).toFixed(2);
 
-          updateProgressMessage(`Face Recognition after Smile: ${isMatch ? `PASS (${matchRate}%)` : `FAILED (${matchRate}%)`}`);
+          if (matchRate >= 80) {
+            updateProgressMessage(`Smile SUCCESS: Match Rate ${matchRate}%`);
+          } else {
+            updateProgressMessage(`Smile FAILED: Match Rate ${matchRate}%`);
+            smileDetected = false; // Reset smile detection if match fails
+          }
         }
 
         // If both criteria are met, complete the process
         if (blinkDetected && smileDetected) {
-          updateProgressMessage('Liveness and Face Recognition checks completed successfully!');
+          updateProgressMessage('✅ Liveness and Face Recognition checks completed successfully!');
           onComplete();
           return;
         }
+      } else {
+        updateProgressMessage('No faces detected.');
       }
 
       // Continue processing frames
