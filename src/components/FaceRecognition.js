@@ -157,22 +157,40 @@ const FaceRecognition = () => {
       <h2>Upload Reference Image</h2>
       <input type="file" accept="image/*" onChange={handleImageUpload} />
 
-      <button
-        onClick={handleCheck}
-        disabled={!referenceDescriptor || isChecking}
-        style={{
-          marginTop: '20px',
-          padding: '10px 20px',
-          fontSize: '16px',
-          cursor: referenceDescriptor && !isChecking ? 'pointer' : 'not-allowed',
-          backgroundColor: referenceDescriptor && !isChecking ? '#007BFF' : '#CCC',
-          color: '#FFF',
-          border: 'none',
-          borderRadius: '5px',
-        }}
-      >
-        {isChecking ? 'Checking...' : 'Start Liveness + Face Recognition'}
-      </button>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <button
+          onClick={handleCheck}
+          disabled={!referenceDescriptor || isChecking}
+          style={{
+            marginTop: '20px',
+            padding: '10px 20px',
+            fontSize: '16px',
+            cursor: referenceDescriptor && !isChecking ? 'pointer' : 'not-allowed',
+            backgroundColor: referenceDescriptor && !isChecking ? '#007BFF' : '#CCC',
+            color: '#FFF',
+            border: 'none',
+            borderRadius: '5px',
+          }}
+        >
+          {isChecking ? 'Checking...' : 'Start Liveness + Face Recognition'}
+        </button>
+
+        <div style={{ marginLeft: '20px', textAlign: 'left', fontSize: '16px' }}>
+          <p>{progressMessage}</p>
+          <p>
+            Face Recognition:{' '}
+            <strong style={{ color: matchResult === 'PASS' ? 'green' : 'red' }}>
+              {matchResult ? (matchResult === 'PASS' ? '✅ PASS' : '❌ FAILED') : '...'}
+            </strong>
+          </p>
+          <p>
+            Liveness Check:{' '}
+            <strong style={{ color: livenessPassed ? 'green' : 'red' }}>
+              {livenessPassed ? '✅ PASS' : '❌ FAILED'}
+            </strong>
+          </p>
+        </div>
+      </div>
 
       {showCamera && (
         <div style={{ position: 'relative', width: '720px', height: '560px', marginTop: '20px' }}>
@@ -192,23 +210,6 @@ const FaceRecognition = () => {
           />
         </div>
       )}
-
-      <div style={{ marginTop: '20px', fontSize: '20px' }}>
-        <p>{progressMessage}</p> {/* Display progress message */}
-        <p>
-          Face Recognition:{' '}
-          <strong style={{ color: matchResult === 'PASS' ? 'green' : 'red' }}>
-            {matchResult ? (matchResult === 'PASS' ? '✅ PASS' : '❌ FAILED') : '...'}
-          </strong>
-        </p>
-
-        <p>
-          Liveness Check:{' '}
-          <strong style={{ color: livenessPassed ? 'green' : 'red' }}>
-            {livenessPassed ? '✅ PASS' : '❌ FAILED'}
-          </strong>
-        </p>
-      </div>
     </div>
   );
 };
