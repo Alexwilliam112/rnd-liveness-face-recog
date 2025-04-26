@@ -145,34 +145,32 @@ export const performLivenessAndRecognition = async (
         const isBlink = leftEAR < 0.2 && rightEAR < 0.2;
 
         if (isBlink && !blinkDetected) {
-          blinkDetected = true;
           updateProgressMessage('Blink detected! Proceeding to face recognition...');
           const faceMatcher = new faceapi.FaceMatcher(referenceDescriptor, 0.6);
           const match = faceMatcher.findBestMatch(detection.descriptor);
           const matchRate = ((1 - match.distance) * 100).toFixed(2);
 
           if (matchRate >= 80) {
+            blinkDetected = true;
             updateProgressMessage(`Blink SUCCESS: Match Rate ${matchRate}%`);
           } else {
             updateProgressMessage(`Blink FAILED: Match Rate ${matchRate}%`);
-            blinkDetected = false; // Reset blink detection if match fails
           }
         }
 
         // Check for smile
         const isSmile = expressions.happy > 0.7;
         if (isSmile && blinkDetected && !smileDetected) {
-          smileDetected = true;
           updateProgressMessage('Smile detected! Proceeding to face recognition...');
           const faceMatcher = new faceapi.FaceMatcher(referenceDescriptor, 0.6);
           const match = faceMatcher.findBestMatch(detection.descriptor);
           const matchRate = ((1 - match.distance) * 100).toFixed(2);
 
           if (matchRate >= 80) {
+            smileDetected = true;
             updateProgressMessage(`Smile SUCCESS: Match Rate ${matchRate}%`);
           } else {
             updateProgressMessage(`Smile FAILED: Match Rate ${matchRate}%`);
-            smileDetected = false; // Reset smile detection if match fails
           }
         }
 
