@@ -13,6 +13,7 @@ const FaceRecognition = () => {
   const [cameraError, setCameraError] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
+  const [cameraReady, setCameraReady] = useState(false); // New state to track camera readiness
   const [progressMessages, setProgressMessages] = useState([]); // Log of all progress messages
 
   // Helper function to add a message to the progress log
@@ -52,6 +53,7 @@ const FaceRecognition = () => {
           if (videoRef.current) {
             videoRef.current.srcObject = stream;
           }
+          setCameraReady(true); // Set camera as ready
           addProgressMessage('Camera started successfully.');
         })
         .catch((err) => {
@@ -109,7 +111,12 @@ const FaceRecognition = () => {
       return;
     }
 
-    setShowCamera(true);
+    if (!cameraReady) {
+      alert('Camera is not ready yet. Please wait.');
+      addProgressMessage('Camera is not ready yet. Please wait.');
+      return;
+    }
+
     setIsChecking(true);
     addProgressMessage('Starting liveness and face recognition check...');
 
