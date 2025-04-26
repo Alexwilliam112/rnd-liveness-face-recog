@@ -12,19 +12,25 @@ const FaceRecognition = () => {
   const [livenessPassed, setLivenessPassed] = useState(false);
   const [cameraError, setCameraError] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
-  const [showCamera, setShowCamera] = useState(false); // State to control camera visibility
+  const [showCamera, setShowCamera] = useState(false);
 
   // Load face-api.js models
   useEffect(() => {
     const loadModels = async () => {
       const MODEL_URL = '/models';
-      await Promise.all([
-        faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
-        faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
-        faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
-        faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL),
-      ]);
-      setModelsLoaded(true);
+      try {
+        await Promise.all([
+          faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+          faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+          faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
+          faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL),
+          faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL), // Ensure SsdMobilenetv1 is loaded
+        ]);
+        setModelsLoaded(true);
+        console.log('Models loaded successfully');
+      } catch (error) {
+        console.error('Error loading models:', error);
+      }
     };
     loadModels();
   }, []);
@@ -50,67 +56,85 @@ const FaceRecognition = () => {
     }
   }, [modelsLoaded, showCamera]);
 
+  // Upload and process reference image
   const handleImageUpload = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
-  
-    const img = await faceapi.bufferToImage(file);
-    const detection = await faceapi
-      .detectSingleFace(img)
-      .withFaceLandmarks()
-      .withFaceDescriptor();
-  
-    if (detection) {
-      const descriptor = new faceapi.LabeledFaceDescriptors('Reference', [detection.descriptor]);
-      setReferenceDescriptor(descriptor);
-      console.log('Reference Descriptor Set:', descriptor); // Debugging log
-    } else {
-      alert('No face detected in the uploaded image.');
+
+    try {
+      const img = await faceapi.bufferToImage(file);
+      const detection = await faceapi
+        .detectSingleFace(img)
+        .withFaceLandmarks()
+        .withFaceDescriptor();
+
+      if (detection) {
+        const descriptor = new faceapi.LabeledFaceDescriptors('Reference', [detection.descriptor]);
+        setReferenceDescriptor(descriptor);
+        console.log('Reference Descriptor Set:', descriptor);
+      } else {
+        alert('No face detected in the uploaded image.');
+      }
+    } catch (error) {
+      console.error('Error processing reference image:', error);
+      alert('Failed to process the uploaded image. Please try again.');
     }
   };
-  
+
+  // Face recognition & liveness check
   const handleCheck = async () => {
-    console.log('Button Clicked'); // Debugging log
-    if (!modelsLoaded || !referenceDescriptor) {
-      console.log('Models not loaded or reference descriptor missing'); // Debugging log
+    console.log('Button Clicked');
+
+    if (!modelsLoaded) {
+      alert('Models are still loading. Please wait and try again.');
       return;
     }
-  
-    setShowCamera(true); // Show the camera frame
-    setIsChecking(true); // Indicate that the check is running
-  
-    const options = new faceapi.TinyFaceDetectorOptions();
-  
-    const detections = await faceapi
-      .detectAllFaces(videoRef.current, options)
-      .withFaceLandmarks()
-      .withFaceExpressions()
-      .withFaceDescriptors();
-  
-    if (canvasRef.current && videoRef.current) {
-      const dims = faceapi.matchDimensions(canvasRef.current, videoRef.current, true);
-      canvasRef.current.getContext('2d').clearRect(0, 0, dims.width, dims.height);
-  
-      const resized = faceapi.resizeResults(detections, dims);
-      faceapi.draw.drawDetections(canvasRef.current, resized);
-      faceapi.draw.drawFaceLandmarks(canvasRef.current, resized);
-      faceapi.draw.drawFaceExpressions(canvasRef.current, resized);
+
+    if (!referenceDescriptor) {
+      alert('Please upload a reference image before starting the check.');
+      return;
     }
-  
-    if (detections.length > 0) {
-      const expressions = detections[0].expressions;
-      const isLive = expressions.happy > 0.7 || expressions.surprised > 0.7;
-      setLivenessPassed(isLive);
-  
-      const faceMatcher = new faceapi.FaceMatcher(referenceDescriptor, 0.6);
-      const match = faceMatcher.findBestMatch(detections[0].descriptor);
-      setMatchResult(match.label === 'Reference' ? 'PASS' : 'FAILED');
-    } else {
-      setMatchResult(null);
-      setLivenessPassed(false);
+
+    setShowCamera(true);
+    setIsChecking(true);
+
+    try {
+      const options = new faceapi.TinyFaceDetectorOptions();
+
+      const detections = await faceapi
+        .detectAllFaces(videoRef.current, options)
+        .withFaceLandmarks()
+        .withFaceExpressions()
+        .withFaceDescriptors();
+
+      if (canvasRef.current && videoRef.current) {
+        const dims = faceapi.matchDimensions(canvasRef.current, videoRef.current, true);
+        canvasRef.current.getContext('2d').clearRect(0, 0, dims.width, dims.height);
+
+        const resized = faceapi.resizeResults(detections, dims);
+        faceapi.draw.drawDetections(canvasRef.current, resized);
+        faceapi.draw.drawFaceLandmarks(canvasRef.current, resized);
+        faceapi.draw.drawFaceExpressions(canvasRef.current, resized);
+      }
+
+      if (detections.length > 0) {
+        const expressions = detections[0].expressions;
+        const isLive = expressions.happy > 0.7 || expressions.surprised > 0.7;
+        setLivenessPassed(isLive);
+
+        const faceMatcher = new faceapi.FaceMatcher(referenceDescriptor, 0.6);
+        const match = faceMatcher.findBestMatch(detections[0].descriptor);
+        setMatchResult(match.label === 'Reference' ? 'PASS' : 'FAILED');
+      } else {
+        setMatchResult(null);
+        setLivenessPassed(false);
+      }
+    } catch (error) {
+      console.error('Error during face recognition and liveness check:', error);
+      alert('An error occurred during the check. Please try again.');
+    } finally {
+      setIsChecking(false);
     }
-  
-    setIsChecking(false); // Indicate that the check is complete
   };
 
   if (cameraError) {
