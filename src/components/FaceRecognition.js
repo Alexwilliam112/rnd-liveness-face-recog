@@ -13,6 +13,7 @@ const FaceRecognition = () => {
   const [cameraError, setCameraError] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
+  const [progressMessage, setProgressMessage] = useState(''); // New state for progress messages
 
   // Load face-api.js models
   useEffect(() => {
@@ -97,10 +98,12 @@ const FaceRecognition = () => {
 
     setShowCamera(true);
     setIsChecking(true);
+    setProgressMessage('Starting liveness and face recognition check...');
 
     try {
       const options = new faceapi.TinyFaceDetectorOptions();
 
+      setProgressMessage('Detecting faces...');
       const detections = await faceapi
         .detectAllFaces(videoRef.current, options)
         .withFaceLandmarks()
@@ -118,14 +121,18 @@ const FaceRecognition = () => {
       }
 
       if (detections.length > 0) {
+        setProgressMessage('Analyzing expressions for liveness...');
         const expressions = detections[0].expressions;
         const isLive = expressions.happy > 0.7 || expressions.surprised > 0.7;
         setLivenessPassed(isLive);
 
+        setProgressMessage('Matching face with reference image...');
         const faceMatcher = new faceapi.FaceMatcher(referenceDescriptor, 0.6);
         const match = faceMatcher.findBestMatch(detections[0].descriptor);
         setMatchResult(match.label === 'Reference' ? 'PASS' : 'FAILED');
+        setProgressMessage('Check complete.');
       } else {
+        setProgressMessage('No faces detected.');
         setMatchResult(null);
         setLivenessPassed(false);
       }
@@ -187,6 +194,7 @@ const FaceRecognition = () => {
       )}
 
       <div style={{ marginTop: '20px', fontSize: '20px' }}>
+        <p>{progressMessage}</p> {/* Display progress message */}
         <p>
           Face Recognition:{' '}
           <strong style={{ color: matchResult === 'PASS' ? 'green' : 'red' }}>
