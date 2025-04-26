@@ -88,12 +88,15 @@ const FaceRecognition = () => {
             handleCheck();
           }}
           disabled={!referenceDescriptor || isChecking || !cameraReady}
+
           style={{
             marginTop: '20px',
             padding: '10px 20px',
             fontSize: '16px',
+
             cursor: referenceDescriptor && !isChecking && cameraReady ? 'pointer' : 'not-allowed',
             backgroundColor: referenceDescriptor && !isChecking && cameraReady ? '#007BFF' : '#CCC',
+
             color: '#FFF',
             border: 'none',
             borderRadius: '5px',
@@ -101,8 +104,10 @@ const FaceRecognition = () => {
         >
           {isChecking
             ? 'Checking...'
+
             : !cameraReady
             ? 'LOADING CAMERA...'
+
             : 'Start Liveness + Face Recognition'}
         </button>
 
