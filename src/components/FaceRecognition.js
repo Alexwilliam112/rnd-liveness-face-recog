@@ -147,18 +147,19 @@ const FaceRecognition = () => {
         const faceMatcher = new faceapi.FaceMatcher(referenceDescriptor, 0.6);
         const match = faceMatcher.findBestMatch(detections[0].descriptor);
         const isMatch = match.label === 'Reference';
+        const matchRate = ((1 - match.distance) * 100).toFixed(2); // Calculate match rate as a percentage
 
-        setMatchResult(isMatch ? 'PASS' : 'FAILED');
+        setMatchResult(isMatch ? `PASS (${matchRate}%)` : `FAILED (${matchRate}%)`);
 
         // Update progress message based on results
         if (isMatch && isLive) {
-          addProgressMessage('✅ Both Face Recognition and Liveness Check Passed!');
+          addProgressMessage(`✅ Both Face Recognition (${matchRate}%) and Liveness Check Passed!`);
         } else if (isMatch) {
-          addProgressMessage('✅ Face Recognition Passed, ❌ Liveness Check Failed.');
+          addProgressMessage(`✅ Face Recognition (${matchRate}%) Passed, ❌ Liveness Check Failed.`);
         } else if (isLive) {
-          addProgressMessage('❌ Face Recognition Failed, ✅ Liveness Check Passed.');
+          addProgressMessage(`❌ Face Recognition (${matchRate}%) Failed, ✅ Liveness Check Passed.`);
         } else {
-          addProgressMessage('❌ Both Face Recognition and Liveness Check Failed.');
+          addProgressMessage(`❌ Both Face Recognition (${matchRate}%) and Liveness Check Failed.`);
         }
       } else {
         addProgressMessage('No faces detected.');
@@ -215,6 +216,18 @@ const FaceRecognition = () => {
               <li key={index}>{msg}</li>
             ))}
           </ul>
+          <p>
+            Face Recognition Result:{' '}
+            <strong style={{ color: matchResult?.includes('PASS') ? 'green' : 'red' }}>
+              {matchResult || '...'}
+            </strong>
+          </p>
+          <p>
+            Liveness Check:{' '}
+            <strong style={{ color: livenessPassed ? 'green' : 'red' }}>
+              {livenessPassed ? '✅ PASS' : '❌ FAILED'}
+            </strong>
+          </p>
         </div>
       </div>
 
