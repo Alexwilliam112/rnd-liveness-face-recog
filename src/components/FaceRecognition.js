@@ -1,15 +1,13 @@
 'use client';
 
 import React, { useRef, useEffect, useState } from 'react';
-import { loadModels, processReferenceImage, performFaceRecognition } from '../utils/faceRecognitionUtils.js';
+import { loadModels, processReferenceImage, performLivenessAndRecognition } from '../utils/faceRecognitionUtils';
 
 const FaceRecognition = () => {
   const videoRef = useRef();
   const canvasRef = useRef();
   const [modelsLoaded, setModelsLoaded] = useState(false);
   const [referenceDescriptor, setReferenceDescriptor] = useState(null);
-  const [matchResult, setMatchResult] = useState(null);
-  const [livenessPassed, setLivenessPassed] = useState(false);
   const [cameraError, setCameraError] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
@@ -52,9 +50,15 @@ const FaceRecognition = () => {
 
     const descriptor = await processReferenceImage(file, updateProgressMessage);
     setReferenceDescriptor(descriptor);
+
+    // Automatically start the camera after a successful image upload
+    if (descriptor) {
+      setShowCamera(true);
+      setCameraReady(false); // Reset cameraReady to false until the camera is ready
+    }
   };
 
-  const handleCheck = async () => {
+  const handleCheck = () => {
     if (!modelsLoaded || !referenceDescriptor || !cameraReady) {
       updateProgressMessage('Ensure models are loaded, reference image is uploaded, and camera is ready.');
       return;
@@ -63,25 +67,9 @@ const FaceRecognition = () => {
     setIsChecking(true);
     updateProgressMessage('Starting liveness and face recognition check...');
 
-    const result = await performFaceRecognition(videoRef, canvasRef, referenceDescriptor, updateProgressMessage);
-
-    if (result) {
-      const { isLive, isMatch, matchRate } = result;
-      setLivenessPassed(isLive);
-      setMatchResult(isMatch ? `PASS (${matchRate}%)` : `FAILED (${matchRate}%)`);
-
-      if (isMatch && isLive) {
-        updateProgressMessage(`✅ Both Face Recognition (${matchRate}%) and Liveness Check Passed!`);
-      } else if (isMatch) {
-        updateProgressMessage(`✅ Face Recognition (${matchRate}%) Passed, ❌ Liveness Check Failed.`);
-      } else if (isLive) {
-        updateProgressMessage(`❌ Face Recognition (${matchRate}%) Failed, ✅ Liveness Check Passed.`);
-      } else {
-        updateProgressMessage(`❌ Both Face Recognition (${matchRate}%) and Liveness Check Failed.`);
-      }
-    }
-
-    setIsChecking(false);
+    performLivenessAndRecognition(videoRef, canvasRef, referenceDescriptor, updateProgressMessage, () => {
+      setIsChecking(false);
+    });
   };
 
   if (cameraError) {
@@ -99,13 +87,16 @@ const FaceRecognition = () => {
             setShowCamera(true);
             handleCheck();
           }}
-          disabled={!referenceDescriptor || isChecking || !modelsLoaded}
+          disabled={!referenceDescriptor || isChecking || !cameraReady}
+
           style={{
             marginTop: '20px',
             padding: '10px 20px',
             fontSize: '16px',
-            cursor: referenceDescriptor && !isChecking && modelsLoaded ? 'pointer' : 'not-allowed',
-            backgroundColor: referenceDescriptor && !isChecking && modelsLoaded ? '#007BFF' : '#CCC',
+
+            cursor: referenceDescriptor && !isChecking && cameraReady ? 'pointer' : 'not-allowed',
+            backgroundColor: referenceDescriptor && !isChecking && cameraReady ? '#007BFF' : '#CCC',
+
             color: '#FFF',
             border: 'none',
             borderRadius: '5px',
@@ -113,26 +104,16 @@ const FaceRecognition = () => {
         >
           {isChecking
             ? 'Checking...'
-            : !cameraReady && showCamera
-            ? 'Loading Camera...'
+
+            : !cameraReady
+            ? 'LOADING CAMERA...'
+
             : 'Start Liveness + Face Recognition'}
         </button>
 
         <div style={{ marginLeft: '20px', textAlign: 'left', fontSize: '16px' }}>
           <p>Progress Log:</p>
           <p>{progressMessage}</p>
-          <p>
-            Face Recognition Result:{' '}
-            <strong style={{ color: matchResult?.includes('PASS') ? 'green' : 'red' }}>
-              {matchResult || '...'}
-            </strong>
-          </p>
-          <p>
-            Liveness Check:{' '}
-            <strong style={{ color: livenessPassed ? 'green' : 'red' }}>
-              {livenessPassed ? '✅ PASS' : '❌ FAILED'}
-            </strong>
-          </p>
         </div>
       </div>
 
