@@ -50,56 +50,58 @@ const FaceRecognition = () => {
     }
   }, [modelsLoaded, showCamera]);
 
-  // Upload and process reference image
   const handleImageUpload = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
-
+  
     const img = await faceapi.bufferToImage(file);
     const detection = await faceapi
       .detectSingleFace(img)
       .withFaceLandmarks()
       .withFaceDescriptor();
-
+  
     if (detection) {
-      setReferenceDescriptor(
-        new faceapi.LabeledFaceDescriptors('Reference', [detection.descriptor])
-      );
+      const descriptor = new faceapi.LabeledFaceDescriptors('Reference', [detection.descriptor]);
+      setReferenceDescriptor(descriptor);
+      console.log('Reference Descriptor Set:', descriptor); // Debugging log
     } else {
       alert('No face detected in the uploaded image.');
     }
   };
-
-  // Face recognition & liveness check
+  
   const handleCheck = async () => {
-    if (!modelsLoaded || !referenceDescriptor) return;
-
+    console.log('Button Clicked'); // Debugging log
+    if (!modelsLoaded || !referenceDescriptor) {
+      console.log('Models not loaded or reference descriptor missing'); // Debugging log
+      return;
+    }
+  
     setShowCamera(true); // Show the camera frame
     setIsChecking(true); // Indicate that the check is running
-
+  
     const options = new faceapi.TinyFaceDetectorOptions();
-
+  
     const detections = await faceapi
       .detectAllFaces(videoRef.current, options)
       .withFaceLandmarks()
       .withFaceExpressions()
       .withFaceDescriptors();
-
+  
     if (canvasRef.current && videoRef.current) {
       const dims = faceapi.matchDimensions(canvasRef.current, videoRef.current, true);
       canvasRef.current.getContext('2d').clearRect(0, 0, dims.width, dims.height);
-
+  
       const resized = faceapi.resizeResults(detections, dims);
       faceapi.draw.drawDetections(canvasRef.current, resized);
       faceapi.draw.drawFaceLandmarks(canvasRef.current, resized);
       faceapi.draw.drawFaceExpressions(canvasRef.current, resized);
     }
-
+  
     if (detections.length > 0) {
       const expressions = detections[0].expressions;
       const isLive = expressions.happy > 0.7 || expressions.surprised > 0.7;
       setLivenessPassed(isLive);
-
+  
       const faceMatcher = new faceapi.FaceMatcher(referenceDescriptor, 0.6);
       const match = faceMatcher.findBestMatch(detections[0].descriptor);
       setMatchResult(match.label === 'Reference' ? 'PASS' : 'FAILED');
@@ -107,7 +109,7 @@ const FaceRecognition = () => {
       setMatchResult(null);
       setLivenessPassed(false);
     }
-
+  
     setIsChecking(false); // Indicate that the check is complete
   };
 
