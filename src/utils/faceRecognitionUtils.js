@@ -131,7 +131,7 @@ export const performLivenessAndRecognition = async (
         const expressions = detection.expressions;
 
         // Check for the first smile
-        const isSmile = expressions.happy > 0.7;
+        const isSmile = expressions.happy > 0.5;
 
         if (!firstSmileDetected) {
           updateProgressMessage('Please smile.');
