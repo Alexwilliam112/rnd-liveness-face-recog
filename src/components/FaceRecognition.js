@@ -10,7 +10,8 @@ const FaceRecognition = () => {
   const [referenceDescriptor, setReferenceDescriptor] = useState(null);
   const [matchResult, setMatchResult] = useState(null);
   const [livenessPassed, setLivenessPassed] = useState(false);
-  const [cameraError, setCameraError] = useState(false); // New state for camera error
+  const [cameraError, setCameraError] = useState(false);
+  const [isChecking, setIsChecking] = useState(false); // State to track if the check is running
 
   // Load face-api.js models
   useEffect(() => {
@@ -31,16 +32,21 @@ const FaceRecognition = () => {
   useEffect(() => {
     if (!modelsLoaded || typeof window === 'undefined') return;
 
-    navigator.mediaDevices.getUserMedia({ video: true })
-      .then((stream) => {
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
-      })
-      .catch((err) => {
-        console.error('Error accessing webcam:', err);
-        setCameraError(true); // Set camera error if no camera is detected
-      });
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      navigator.mediaDevices.getUserMedia({ video: true })
+        .then((stream) => {
+          if (videoRef.current) {
+            videoRef.current.srcObject = stream;
+          }
+        })
+        .catch((err) => {
+          console.error('Error accessing webcam:', err);
+          setCameraError(true);
+        });
+    } else {
+      console.error('getUserMedia is not supported in this browser.');
+      setCameraError(true);
+    }
   }, [modelsLoaded]);
 
   // Upload and process reference image
@@ -63,46 +69,44 @@ const FaceRecognition = () => {
     }
   };
 
-  // Face recognition & liveness check loop
-  const handlePlay = () => {
-    if (!modelsLoaded) return;
+  // Face recognition & liveness check
+  const handleCheck = async () => {
+    if (!modelsLoaded || !referenceDescriptor) return;
 
-    const interval = setInterval(async () => {
-      const options = new faceapi.TinyFaceDetectorOptions();
+    setIsChecking(true); // Indicate that the check is running
 
-      const detections = await faceapi
-        .detectAllFaces(videoRef.current, options)
-        .withFaceLandmarks()
-        .withFaceExpressions()
-        .withFaceDescriptors();
+    const options = new faceapi.TinyFaceDetectorOptions();
 
-      if (canvasRef.current && videoRef.current) {
-        const dims = faceapi.matchDimensions(canvasRef.current, videoRef.current, true);
-        canvasRef.current.getContext('2d').clearRect(0, 0, dims.width, dims.height);
+    const detections = await faceapi
+      .detectAllFaces(videoRef.current, options)
+      .withFaceLandmarks()
+      .withFaceExpressions()
+      .withFaceDescriptors();
 
-        const resized = faceapi.resizeResults(detections, dims);
-        faceapi.draw.drawDetections(canvasRef.current, resized);
-        faceapi.draw.drawFaceLandmarks(canvasRef.current, resized);
-        faceapi.draw.drawFaceExpressions(canvasRef.current, resized);
-      }
+    if (canvasRef.current && videoRef.current) {
+      const dims = faceapi.matchDimensions(canvasRef.current, videoRef.current, true);
+      canvasRef.current.getContext('2d').clearRect(0, 0, dims.width, dims.height);
 
-      if (detections.length > 0) {
-        const expressions = detections[0].expressions;
-        const isLive = expressions.happy > 0.7 || expressions.surprised > 0.7;
-        setLivenessPassed(isLive);
+      const resized = faceapi.resizeResults(detections, dims);
+      faceapi.draw.drawDetections(canvasRef.current, resized);
+      faceapi.draw.drawFaceLandmarks(canvasRef.current, resized);
+      faceapi.draw.drawFaceExpressions(canvasRef.current, resized);
+    }
 
-        if (referenceDescriptor) {
-          const faceMatcher = new faceapi.FaceMatcher(referenceDescriptor, 0.6);
-          const match = faceMatcher.findBestMatch(detections[0].descriptor);
-          setMatchResult(match.label === 'Reference' ? 'PASS' : 'FAILED');
-        }
-      } else {
-        setMatchResult(null);
-        setLivenessPassed(false);
-      }
-    }, 1000);
+    if (detections.length > 0) {
+      const expressions = detections[0].expressions;
+      const isLive = expressions.happy > 0.7 || expressions.surprised > 0.7;
+      setLivenessPassed(isLive);
 
-    return () => clearInterval(interval);
+      const faceMatcher = new faceapi.FaceMatcher(referenceDescriptor, 0.6);
+      const match = faceMatcher.findBestMatch(detections[0].descriptor);
+      setMatchResult(match.label === 'Reference' ? 'PASS' : 'FAILED');
+    } else {
+      setMatchResult(null);
+      setLivenessPassed(false);
+    }
+
+    setIsChecking(false); // Indicate that the check is complete
   };
 
   if (cameraError) {
@@ -125,7 +129,6 @@ const FaceRecognition = () => {
           height="560"
           autoPlay
           muted
-          onPlay={handlePlay}
           style={{ position: 'absolute', top: 0, left: 0 }}
         />
         <canvas
@@ -135,6 +138,23 @@ const FaceRecognition = () => {
           style={{ position: 'absolute', top: 0, left: 0 }}
         />
       </div>
+
+      <button
+        onClick={handleCheck}
+        disabled={!referenceDescriptor || isChecking}
+        style={{
+          marginTop: '20px',
+          padding: '10px 20px',
+          fontSize: '16px',
+          cursor: referenceDescriptor && !isChecking ? 'pointer' : 'not-allowed',
+          backgroundColor: referenceDescriptor && !isChecking ? '#007BFF' : '#CCC',
+          color: '#FFF',
+          border: 'none',
+          borderRadius: '5px',
+        }}
+      >
+        {isChecking ? 'Checking...' : 'Start Liveness + Face Recognition'}
+      </button>
 
       <div style={{ marginTop: '20px', fontSize: '20px' }}>
         <p>
