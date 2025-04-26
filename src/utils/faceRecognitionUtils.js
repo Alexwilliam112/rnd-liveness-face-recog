@@ -43,60 +43,6 @@ export const processReferenceImage = async (file, updateProgressMessage) => {
   }
 };
 
-// Perform face recognition and liveness check
-export const performFaceRecognition = async (
-  videoRef,
-  canvasRef,
-  referenceDescriptor,
-  updateProgressMessage
-) => {
-  try {
-    const options = new faceapi.TinyFaceDetectorOptions();
-
-    updateProgressMessage('Detecting faces...');
-    const detections = await faceapi
-      .detectAllFaces(videoRef.current, options)
-      .withFaceLandmarks()
-      .withFaceExpressions()
-      .withFaceDescriptors();
-
-    if (canvasRef.current && videoRef.current) {
-      const dims = faceapi.matchDimensions(canvasRef.current, videoRef.current, true);
-      canvasRef.current.getContext('2d').clearRect(0, 0, dims.width, dims.height);
-
-      const resized = faceapi.resizeResults(detections, dims);
-      faceapi.draw.drawDetections(canvasRef.current, resized);
-      faceapi.draw.drawFaceLandmarks(canvasRef.current, resized);
-      faceapi.draw.drawFaceExpressions(canvasRef.current, resized);
-    }
-
-    if (detections.length > 0) {
-      updateProgressMessage('Analyzing expressions for liveness...');
-      const expressions = detections[0].expressions;
-      const isLive = expressions.happy > 0.7 || expressions.surprised > 0.7;
-
-      updateProgressMessage('Matching face with reference image...');
-      const faceMatcher = new faceapi.FaceMatcher(referenceDescriptor, 0.6);
-      const match = faceMatcher.findBestMatch(detections[0].descriptor);
-      const isMatch = match.label === 'Reference';
-      const matchRate = ((1 - match.distance) * 100).toFixed(2);
-
-      return {
-        isLive,
-        isMatch,
-        matchRate,
-      };
-    } else {
-      updateProgressMessage('No faces detected.');
-      return null;
-    }
-  } catch (error) {
-    console.error('Error during face recognition and liveness check:', error);
-    updateProgressMessage('An error occurred during the check.');
-    return null;
-  }
-};
-
 export const performLivenessAndRecognition = async (
   videoRef,
   canvasRef,
@@ -106,8 +52,9 @@ export const performLivenessAndRecognition = async (
 ) => {
   try {
     const options = new faceapi.TinyFaceDetectorOptions();
-    let firstSmileDetected = false;
-    let secondSmileDetected = false;
+    let smileDetected = false;
+
+    const MATCH_RATE_THRESHOLD = 70; // Lowered match rate threshold to 70
 
     const processFrame = async () => {
       const detections = await faceapi
@@ -130,48 +77,29 @@ export const performLivenessAndRecognition = async (
         const detection = detections[0];
         const expressions = detection.expressions;
 
-        // Check for the first smile
+        // Check for smile
         const isSmile = expressions.happy > 0.2;
 
-        if (!firstSmileDetected) {
+        if (!smileDetected) {
           updateProgressMessage('Please smile.');
         }
 
-        if (isSmile && !firstSmileDetected) {
-          updateProgressMessage('First smile detected! Proceeding to face recognition...');
+        if (isSmile && !smileDetected) {
+          updateProgressMessage('Smile detected! Proceeding to face recognition...');
           const faceMatcher = new faceapi.FaceMatcher(referenceDescriptor, 0.6);
           const match = faceMatcher.findBestMatch(detection.descriptor);
           const matchRate = ((1 - match.distance) * 100).toFixed(2);
 
-          if (matchRate >= 80) {
-            firstSmileDetected = true;
-            updateProgressMessage(`First Smile SUCCESS: Match Rate ${matchRate}%`);
+          if (matchRate >= MATCH_RATE_THRESHOLD) {
+            smileDetected = true;
+            updateProgressMessage(`Smile SUCCESS: Match Rate ${matchRate}%`);
           } else {
-            updateProgressMessage(`First Smile FAILED: Match Rate ${matchRate}%`);
+            updateProgressMessage(`Smile FAILED: Match Rate ${matchRate}%`);
           }
         }
 
-        // Check for the second smile
-        if (firstSmileDetected && !secondSmileDetected) {
-          updateProgressMessage('Please smile again.');
-        }
-
-        if (isSmile && firstSmileDetected && !secondSmileDetected) {
-          updateProgressMessage('Second smile detected! Proceeding to face recognition...');
-          const faceMatcher = new faceapi.FaceMatcher(referenceDescriptor, 0.6);
-          const match = faceMatcher.findBestMatch(detection.descriptor);
-          const matchRate = ((1 - match.distance) * 100).toFixed(2);
-
-          if (matchRate >= 80) {
-            secondSmileDetected = true;
-            updateProgressMessage(`Second Smile SUCCESS: Match Rate ${matchRate}%`);
-          } else {
-            updateProgressMessage(`Second Smile FAILED: Match Rate ${matchRate}%`);
-          }
-        }
-
-        // If both criteria are met, complete the process
-        if (firstSmileDetected && secondSmileDetected) {
+        // If smile detection and recognition are successful, complete the process
+        if (smileDetected) {
           updateProgressMessage('✅ Liveness and Face Recognition checks completed successfully!');
           // Ensure the success message is logged before completing
           setTimeout(onComplete, 500); // Add a slight delay to ensure the message is visible
