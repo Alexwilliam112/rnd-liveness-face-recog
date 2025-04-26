@@ -96,3 +96,94 @@ export const performFaceRecognition = async (
     return null;
   }
 };
+
+export const performLivenessAndRecognition = async (
+  videoRef,
+  canvasRef,
+  referenceDescriptor,
+  updateProgressMessage,
+  onComplete
+) => {
+  try {
+    const options = new faceapi.TinyFaceDetectorOptions();
+    let blinkDetected = false;
+    let smileDetected = false;
+
+    const processFrame = async () => {
+      const detections = await faceapi
+        .detectAllFaces(videoRef.current, options)
+        .withFaceLandmarks()
+        .withFaceExpressions()
+        .withFaceDescriptors();
+
+      if (canvasRef.current && videoRef.current) {
+        const dims = faceapi.matchDimensions(canvasRef.current, videoRef.current, true);
+        canvasRef.current.getContext('2d').clearRect(0, 0, dims.width, dims.height);
+
+        const resized = faceapi.resizeResults(detections, dims);
+        faceapi.draw.drawDetections(canvasRef.current, resized);
+        faceapi.draw.drawFaceLandmarks(canvasRef.current, resized);
+        faceapi.draw.drawFaceExpressions(canvasRef.current, resized);
+      }
+
+      if (detections.length > 0) {
+        const detection = detections[0];
+        const expressions = detection.expressions;
+
+        // Check for blink (based on eye landmarks)
+        const landmarks = detection.landmarks;
+        const leftEye = landmarks.getLeftEye();
+        const rightEye = landmarks.getRightEye();
+        const eyeAspectRatio = (eye) => {
+          const width = Math.hypot(eye[3].x - eye[0].x, eye[3].y - eye[0].y);
+          const height = Math.hypot(eye[1].x - eye[5].x, eye[1].y - eye[5].y);
+          return height / width;
+        };
+
+        const leftEAR = eyeAspectRatio(leftEye);
+        const rightEAR = eyeAspectRatio(rightEye);
+        const isBlink = leftEAR < 0.2 && rightEAR < 0.2;
+
+        if (isBlink && !blinkDetected) {
+          blinkDetected = true;
+          updateProgressMessage('Blink detected! Proceeding to face recognition...');
+          const faceMatcher = new faceapi.FaceMatcher(referenceDescriptor, 0.6);
+          const match = faceMatcher.findBestMatch(detection.descriptor);
+          const isMatch = match.label === 'Reference';
+          const matchRate = ((1 - match.distance) * 100).toFixed(2);
+
+          updateProgressMessage(`Face Recognition after Blink: ${isMatch ? `PASS (${matchRate}%)` : `FAILED (${matchRate}%)`}`);
+        }
+
+        // Check for smile
+        const isSmile = expressions.happy > 0.7;
+        if (isSmile && !smileDetected) {
+          smileDetected = true;
+          updateProgressMessage('Smile detected! Proceeding to face recognition...');
+          const faceMatcher = new faceapi.FaceMatcher(referenceDescriptor, 0.6);
+          const match = faceMatcher.findBestMatch(detection.descriptor);
+          const isMatch = match.label === 'Reference';
+          const matchRate = ((1 - match.distance) * 100).toFixed(2);
+
+          updateProgressMessage(`Face Recognition after Smile: ${isMatch ? `PASS (${matchRate}%)` : `FAILED (${matchRate}%)`}`);
+        }
+
+        // If both criteria are met, complete the process
+        if (blinkDetected && smileDetected) {
+          updateProgressMessage('Liveness and Face Recognition checks completed successfully!');
+          onComplete();
+          return;
+        }
+      }
+
+      // Continue processing frames
+      requestAnimationFrame(processFrame);
+    };
+
+    // Start processing frames
+    processFrame();
+  } catch (error) {
+    console.error('Error during liveness and face recognition check:', error);
+    updateProgressMessage('An error occurred during the check.');
+  }
+};
