@@ -13,7 +13,7 @@ const FaceRecognition = () => {
   const [cameraError, setCameraError] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
-  const [cameraReady, setCameraReady] = useState(false); // New state to track camera readiness
+  const [cameraReady, setCameraReady] = useState(false); // State to track camera readiness
   const [progressMessages, setProgressMessages] = useState([]); // Log of all progress messages
 
   // Helper function to add a message to the progress log
@@ -47,25 +47,22 @@ const FaceRecognition = () => {
   useEffect(() => {
     if (!modelsLoaded || typeof window === 'undefined' || !showCamera) return;
 
-    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-      navigator.mediaDevices.getUserMedia({ video: true })
-        .then((stream) => {
-          if (videoRef.current) {
-            videoRef.current.srcObject = stream;
-          }
-          setCameraReady(true); // Set camera as ready
-          addProgressMessage('Camera started successfully.');
-        })
-        .catch((err) => {
-          console.error('Error accessing webcam:', err);
-          setCameraError(true);
-          addProgressMessage('Error accessing webcam.');
-        });
-    } else {
-      console.error('getUserMedia is not supported in this browser.');
-      setCameraError(true);
-      addProgressMessage('getUserMedia is not supported in this browser.');
-    }
+    addProgressMessage('Starting camera...');
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then((stream) => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          videoRef.current.onloadedmetadata = () => {
+            setCameraReady(true); // Set camera as ready after metadata is loaded
+            addProgressMessage('Camera is ready.');
+          };
+        }
+      })
+      .catch((err) => {
+        console.error('Error accessing webcam:', err);
+        setCameraError(true);
+        addProgressMessage('Error accessing webcam.');
+      });
   }, [modelsLoaded, showCamera]);
 
   // Upload and process reference image
@@ -192,7 +189,10 @@ const FaceRecognition = () => {
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <button
-          onClick={handleCheck}
+          onClick={() => {
+            setShowCamera(true); // Ensure the camera is started
+            handleCheck();
+          }}
           disabled={!referenceDescriptor || isChecking}
           style={{
             marginTop: '20px',
