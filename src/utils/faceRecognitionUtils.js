@@ -110,7 +110,7 @@ export const performLivenessAndRecognition = async (
     let smileDetected = false;
 
     // Adjustable EAR threshold for blink detection
-    const BLINK_THRESHOLD = 0.3; // Increased from 0.2 to 0.25 for better sensitivity
+    const BLINK_THRESHOLD = 0.6; // Increased from 0.2 to 0.25 for better sensitivity
 
     const processFrame = async () => {
       const detections = await faceapi
