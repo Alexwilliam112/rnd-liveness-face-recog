@@ -99,19 +99,23 @@ const FaceRecognition = () => {
             setShowCamera(true);
             handleCheck();
           }}
-          disabled={!referenceDescriptor || isChecking}
+          disabled={!referenceDescriptor || isChecking || !modelsLoaded}
           style={{
             marginTop: '20px',
             padding: '10px 20px',
             fontSize: '16px',
-            cursor: referenceDescriptor && !isChecking ? 'pointer' : 'not-allowed',
-            backgroundColor: referenceDescriptor && !isChecking ? '#007BFF' : '#CCC',
+            cursor: referenceDescriptor && !isChecking && modelsLoaded ? 'pointer' : 'not-allowed',
+            backgroundColor: referenceDescriptor && !isChecking && modelsLoaded ? '#007BFF' : '#CCC',
             color: '#FFF',
             border: 'none',
             borderRadius: '5px',
           }}
         >
-          {isChecking ? 'Checking...' : 'Start Liveness + Face Recognition'}
+          {isChecking
+            ? 'Checking...'
+            : !cameraReady && showCamera
+            ? 'Loading Camera...'
+            : 'Start Liveness + Face Recognition'}
         </button>
 
         <div style={{ marginLeft: '20px', textAlign: 'left', fontSize: '16px' }}>
