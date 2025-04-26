@@ -11,7 +11,8 @@ const FaceRecognition = () => {
   const [matchResult, setMatchResult] = useState(null);
   const [livenessPassed, setLivenessPassed] = useState(false);
   const [cameraError, setCameraError] = useState(false);
-  const [isChecking, setIsChecking] = useState(false); // State to track if the check is running
+  const [isChecking, setIsChecking] = useState(false);
+  const [showCamera, setShowCamera] = useState(false); // State to control camera visibility
 
   // Load face-api.js models
   useEffect(() => {
@@ -30,7 +31,7 @@ const FaceRecognition = () => {
 
   // Start webcam (client-side only)
   useEffect(() => {
-    if (!modelsLoaded || typeof window === 'undefined') return;
+    if (!modelsLoaded || typeof window === 'undefined' || !showCamera) return;
 
     if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
       navigator.mediaDevices.getUserMedia({ video: true })
@@ -47,7 +48,7 @@ const FaceRecognition = () => {
       console.error('getUserMedia is not supported in this browser.');
       setCameraError(true);
     }
-  }, [modelsLoaded]);
+  }, [modelsLoaded, showCamera]);
 
   // Upload and process reference image
   const handleImageUpload = async (event) => {
@@ -73,6 +74,7 @@ const FaceRecognition = () => {
   const handleCheck = async () => {
     if (!modelsLoaded || !referenceDescriptor) return;
 
+    setShowCamera(true); // Show the camera frame
     setIsChecking(true); // Indicate that the check is running
 
     const options = new faceapi.TinyFaceDetectorOptions();
@@ -122,23 +124,6 @@ const FaceRecognition = () => {
       <h2>Upload Reference Image</h2>
       <input type="file" accept="image/*" onChange={handleImageUpload} />
 
-      <div style={{ position: 'relative', width: '720px', height: '560px', marginTop: '20px' }}>
-        <video
-          ref={videoRef}
-          width="720"
-          height="560"
-          autoPlay
-          muted
-          style={{ position: 'absolute', top: 0, left: 0 }}
-        />
-        <canvas
-          ref={canvasRef}
-          width="720"
-          height="560"
-          style={{ position: 'absolute', top: 0, left: 0 }}
-        />
-      </div>
-
       <button
         onClick={handleCheck}
         disabled={!referenceDescriptor || isChecking}
@@ -155,6 +140,25 @@ const FaceRecognition = () => {
       >
         {isChecking ? 'Checking...' : 'Start Liveness + Face Recognition'}
       </button>
+
+      {showCamera && (
+        <div style={{ position: 'relative', width: '720px', height: '560px', marginTop: '20px' }}>
+          <video
+            ref={videoRef}
+            width="720"
+            height="560"
+            autoPlay
+            muted
+            style={{ position: 'absolute', top: 0, left: 0 }}
+          />
+          <canvas
+            ref={canvasRef}
+            width="720"
+            height="560"
+            style={{ position: 'absolute', top: 0, left: 0 }}
+          />
+        </div>
+      )}
 
       <div style={{ marginTop: '20px', fontSize: '20px' }}>
         <p>
