@@ -109,6 +109,9 @@ export const performLivenessAndRecognition = async (
     let blinkDetected = false;
     let smileDetected = false;
 
+    // Adjustable EAR threshold for blink detection
+    const BLINK_THRESHOLD = 0.3; // Increased from 0.2 to 0.25 for better sensitivity
+
     const processFrame = async () => {
       const detections = await faceapi
         .detectAllFaces(videoRef.current, options)
@@ -142,7 +145,11 @@ export const performLivenessAndRecognition = async (
 
         const leftEAR = eyeAspectRatio(leftEye);
         const rightEAR = eyeAspectRatio(rightEye);
-        const isBlink = leftEAR < 0.2 && rightEAR < 0.2;
+
+        // Log EAR values for debugging
+        updateProgressMessage(`Left EAR: ${leftEAR.toFixed(3)}, Right EAR: ${rightEAR.toFixed(3)}`);
+
+        const isBlink = leftEAR < BLINK_THRESHOLD && rightEAR < BLINK_THRESHOLD;
 
         if (!blinkDetected) {
           updateProgressMessage('Please blink.');
